@@ -59,10 +59,6 @@ type Point struct {
 	Y float64
 }
 
-func outBeginPolygon() {
-	fmt.Printf("polygon(points = [\n\t")
-}
-
 var stripZeroes *regexp.Regexp
 
 func formatFloat(n float64) string {
@@ -77,14 +73,6 @@ func formatFloat(n float64) string {
 	return str
 }
 
-func outPoint(x float64, y float64) {
-	fmt.Printf("[%s,%s], ", formatFloat(x), formatFloat(y))
-}
-
-func outEndPolygon() {
-	fmt.Printf("\n]);\n")
-}
-
 func main() {
 	// Parse arguments
 	var args args
@@ -95,7 +83,26 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	jsInput := string(jsInputBytes)
+	output := jsToScad(jsInput)
+	fmt.Print(output)
+}
+
+func jsToScad(jsInput string) string {
+	output := ""
+
+	outBeginPolygon := func() {
+		output += "polygon(points = [\n\t"
+	}
+
+	outPoint := func(x float64, y float64) {
+		output += fmt.Sprintf("[%s,%s], ", formatFloat(x), formatFloat(y))
+	}
+
+	outEndPolygon := func() {
+		output += "\n]);\n"
+	}
 
 	// Strip hashbang line if present
 	jsInput = regexp.MustCompile(`^#!.*\n`).ReplaceAllString(jsInput, "\n")
@@ -185,7 +192,7 @@ func main() {
 	vm.Run("lt = left;")
 
 	// Run the script
-	_, err = vm.Run(jsInput)
+	_, err := vm.Run(jsInput)
 	if err != nil {
 		if jsErr, ok := err.(*otto.Error); ok {
 			log.Fatalf("JavaScript error: %s", jsErr.String())
@@ -268,4 +275,6 @@ func main() {
 
 		outEndPolygon()
 	}
+
+	return output
 }
