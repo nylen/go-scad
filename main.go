@@ -213,7 +213,7 @@ func jsToScad(jsInput string) string {
 			// Degenerate case: just draw an end cap
 			point := polygon[0]
 			for j := 0; j < point.EndCapSides; j++ {
-				angle := float64(j)*360/float64(point.EndCapSides)
+				angle := float64(j) * 360 / float64(point.EndCapSides)
 				angle = angle * math.Pi / 180
 				outPoint(
 					point.X+point.Thickness/2*math.Cos(angle),

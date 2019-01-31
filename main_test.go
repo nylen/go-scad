@@ -49,15 +49,13 @@ func testSingleFile(t *testing.T, testFilePath string) {
 	output := jsToScad(inputBytes)
 
 	// Read expected output
-	expectedOutput := readFile(t, testFilePath + ".scad")
+	expectedOutput := readFile(t, testFilePath+".scad")
 
 	// Compare
 	if output != expectedOutput {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(output, expectedOutput, false)
-		t.Error(
-			"output doesn't match " +
-			filepath.Base(testFilePath) + ":\n" +
+		t.Error("output doesn't match " + filepath.Base(testFilePath) + ":\n" +
 			"\x1b[31m- actual\x1b[0m \x1b[32m+ expected\x1b[0m\n" +
 			dmp.DiffPrettyText(diffs))
 	}
