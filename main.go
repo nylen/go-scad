@@ -247,7 +247,7 @@ func jsToScad(jsInput string) string {
 				// Draw end cap
 				fmt.Print("\n\t")
 				for j := 0; j <= point.EndCapSides/2; j++ {
-					angle := headingPrev - float64(j)*360/float64(point.EndCapSides)
+					angle := headingPrev + 90 - float64(j)*360/float64(point.EndCapSides)
 					angle = angle * math.Pi / 180
 					outPoint(
 						point.X+point.Thickness/2*math.Cos(angle),
