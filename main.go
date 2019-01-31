@@ -101,8 +101,15 @@ func jsToScad(jsInput string) string {
 		output += "\n\t"
 	}
 
-	outPoint := func(x float64, y float64) {
-		output += fmt.Sprintf("[%s,%s], ", formatFloat(x), formatFloat(y))
+	outPoint := func(x float64, y float64, isLast bool) {
+		space := " "
+		if isLast {
+			space = ""
+		}
+		output += fmt.Sprintf("[%s,%s],%s",
+			formatFloat(x),
+			formatFloat(y),
+			space)
 	}
 
 	outEndPolygon := func() {
@@ -220,7 +227,8 @@ func jsToScad(jsInput string) string {
 				angle = angle * math.Pi / 180
 				outPoint(
 					point.X+point.Thickness/2*math.Cos(angle),
-					point.Y+point.Thickness/2*math.Sin(angle))
+					point.Y+point.Thickness/2*math.Sin(angle),
+					j == point.EndCapSides-1)
 			}
 			outEndPolygon()
 			continue
@@ -241,7 +249,8 @@ func jsToScad(jsInput string) string {
 					angle = angle * math.Pi / 180
 					outPoint(
 						point.X+point.Thickness/2*math.Cos(angle),
-						point.Y+point.Thickness/2*math.Sin(angle))
+						point.Y+point.Thickness/2*math.Sin(angle),
+						j == point.EndCapSides/2)
 				}
 				outNewLine()
 			} else if i == len(polygon)-1 {
@@ -254,7 +263,8 @@ func jsToScad(jsInput string) string {
 					angle = angle * math.Pi / 180
 					outPoint(
 						point.X+point.Thickness/2*math.Cos(angle),
-						point.Y+point.Thickness/2*math.Sin(angle))
+						point.Y+point.Thickness/2*math.Sin(angle),
+						j == point.EndCapSides/2)
 				}
 				if len(polygon) > 2 {
 					outNewLine()
@@ -265,7 +275,8 @@ func jsToScad(jsInput string) string {
 				heading = heading * math.Pi / 180
 				outPoint(
 					point.X+float64(d)*point.Thickness/2*math.Cos(heading),
-					point.Y+float64(d)*point.Thickness/2*math.Sin(heading))
+					point.Y+float64(d)*point.Thickness/2*math.Sin(heading),
+					((i == len(polygon)-2 && d == 1) || (i == 1 && d == -1)))
 			}
 
 			if i == len(polygon)-1 && d == 1 {
