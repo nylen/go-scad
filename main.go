@@ -50,6 +50,7 @@ func toInt(value otto.Value) int {
 type TurtlePoint struct {
 	X           float64
 	Y           float64
+	Heading     float64
 	Thickness   float64
 	EndCapSides int
 }
@@ -131,6 +132,7 @@ func jsToScad(jsInput string) string {
 			turtlePoints = []TurtlePoint{{
 				X:           turtleX,
 				Y:           turtleY,
+				Heading:     turtleHeading,
 				Thickness:   turtlePenSize,
 				EndCapSides: turtleEndCapSides,
 			}}
@@ -173,6 +175,7 @@ func jsToScad(jsInput string) string {
 			turtlePoints = append(turtlePoints, TurtlePoint{
 				X:           turtleX,
 				Y:           turtleY,
+				Heading:     turtleHeading,
 				Thickness:   turtlePenSize,
 				EndCapSides: turtleEndCapSides,
 			})
@@ -227,20 +230,14 @@ func jsToScad(jsInput string) string {
 		i := 0
 		for {
 			point := polygon[i]
-			var headingNext float64 = math.NaN()
 			var headingPrev float64 = math.NaN()
-			if i < len(polygon)-1 {
-				next := polygon[i+1]
-				headingNext = math.Atan2(next.Y-point.Y, next.X-point.X)
-			}
 			if i > 0 {
-				prev := polygon[i-1]
-				headingPrev = math.Atan2(point.Y-prev.Y, point.X-prev.X)
+				headingPrev = polygon[i-1].Heading
 			}
 			if i == 0 {
 				// Draw begin cap
 				for j := 0; j <= point.EndCapSides/2; j++ {
-					angle := headingNext - 90 - float64(j)*360/float64(point.EndCapSides)
+					angle := point.Heading - 90 - float64(j)*360/float64(point.EndCapSides)
 					angle = angle * math.Pi / 180
 					outPoint(
 						point.X+point.Thickness/2*math.Cos(angle),
@@ -264,7 +261,7 @@ func jsToScad(jsInput string) string {
 				}
 			} else {
 				// Draw left or right side
-				heading := (headingNext+headingPrev)/2 + 90
+				heading := (point.Heading+headingPrev)/2 + 90
 				heading = heading * math.Pi / 180
 				outPoint(
 					point.X+float64(d)*point.Thickness/2*math.Cos(heading),
