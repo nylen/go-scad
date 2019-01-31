@@ -3,6 +3,7 @@ package main
 import (
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -47,6 +48,15 @@ func testSingleFile(t *testing.T, testFilePath string) {
 
 	// Process it
 	output := jsToScad(inputBytes)
+
+	// Optional: Write output file
+	if os.Getenv("REGENERATE_OUTPUT") != "" {
+		err := ioutil.WriteFile(testFilePath+".scad", []byte(output), 0644)
+		if err != nil {
+			t.Log(err)
+			t.FailNow()
+		}
+	}
 
 	// Read expected output
 	expectedOutput := readFile(t, testFilePath+".scad")
