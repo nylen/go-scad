@@ -288,13 +288,62 @@ func jsToScad(jsInput string) string {
 					outNewLine()
 				}
 			} else {
-				// Draw left or right side
-				heading := (point.Heading+headingPrev)/2 + 90
-				heading = heading * math.Pi / 180
-				outPoint(
-					point.X+float64(d)*point.Thickness/2*math.Cos(heading),
-					point.Y+float64(d)*point.Thickness/2*math.Sin(heading),
-					((i == len(polygon)-2 && d == 1) || (i == 1 && d == -1)))
+				// Join together two pen strokes
+				var headingPrev float64
+				var headingNext float64
+				if d == 1 {
+					headingPrev = polygon.Headings[i-1]
+					headingNext = polygon.Headings[i]
+				} else {
+					headingPrev = polygon.Headings[i]
+					headingNext = polygon.Headings[i-1]
+				}
+				isLastPoint :=
+					((i == len(polygon.Points)-2 && d == 1) || (i == 1 && d == -1))
+				if headingPrev == headingNext {
+					// Degenerate case: both segments being joined have the same
+					// heading.  The end of the current pen-stroke is the start
+					// of the next pen-stroke, no need to calculate more.
+					heading := headingPrev + float64(90*d)
+					outPoint(
+						point.X+point.Thickness/2*degCos(heading),
+						point.Y+point.Thickness/2*degSin(heading),
+						isLastPoint)
+				} else {
+					// Need to calculate the point marked with an 'x' in the
+					// diagram below, which is the intersection of the edges of
+					// the current pen-stroke (line between points 1-2) and the
+					// next pen-stroke (line between points 3-4):
+					//
+					//       / .  4
+					//   ----    /
+					//   .   .  /
+					//  1------x2
+					//        3
+					//
+					pointPrev := polygon.Points[i-d]
+					pointNext := polygon.Points[i+d]
+					headingEdgePrev := headingPrev + float64(90*d)
+					headingEdgeNext := headingNext + float64(90*d)
+					// Point 1
+					x1 := pointPrev.X + pointPrev.Thickness/2*degCos(headingEdgePrev)
+					y1 := pointPrev.Y + pointPrev.Thickness/2*degSin(headingEdgePrev)
+					// Point 2
+					x2 := point.X + point.Thickness/2*degCos(headingEdgePrev)
+					y2 := point.Y + point.Thickness/2*degSin(headingEdgePrev)
+					// Point 3
+					x3 := point.X + point.Thickness/2*degCos(headingEdgeNext)
+					y3 := point.Y + point.Thickness/2*degSin(headingEdgeNext)
+					// Point 4
+					x4 := pointNext.X + pointNext.Thickness/2*degCos(headingEdgeNext)
+					y4 := pointNext.Y + pointNext.Thickness/2*degSin(headingEdgeNext)
+					// Calculation
+					// https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
+					denom := (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
+					x := ((x1*y2-y1*x2)*(x3-x4) - (x1-x2)*(x3*y4-y3*x4)) / denom
+					y := ((x1*y2-y1*x2)*(y3-y4) - (y1-y2)*(x3*y4-y3*x4)) / denom
+					outPoint(x, y, isLastPoint)
+				}
 			}
 
 			if i == len(polygon.Points)-1 && d == 1 {
