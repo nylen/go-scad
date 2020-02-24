@@ -253,6 +253,9 @@ func jsToScad(jsInput string) string {
 			continue
 		}
 
+		// Loop around the polygon's coordinates twice (first in ascending
+		// order, then in descending order) to draw the "left" (d == 1) and
+		// "right" (d == -1) edges of its pen strokes, in a clockwise fashion.
 		d := 1
 		i := 0
 		for {
