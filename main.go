@@ -32,6 +32,9 @@ func toJsValue(value interface{}) otto.Value {
 }
 
 func toFloat(value otto.Value) float64 {
+	if value.IsUndefined() {
+		log.Fatal("Undefined value passed to toFloat()")
+	}
 	floatValue, err := value.ToFloat()
 	if err != nil {
 		log.Fatal(err)
@@ -40,6 +43,9 @@ func toFloat(value otto.Value) float64 {
 }
 
 func toInt(value otto.Value) int {
+	if value.IsUndefined() {
+		log.Fatal("Undefined value passed to toInt()")
+	}
 	int64Value, err := value.ToInteger()
 	if err != nil {
 		log.Fatal(err)
