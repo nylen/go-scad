@@ -6,3 +6,5 @@ require (
 	github.com/sergi/go-diff v1.0.0
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 )
+
+go 1.13
