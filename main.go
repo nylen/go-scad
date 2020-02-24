@@ -47,6 +47,18 @@ func toInt(value otto.Value) int {
 	return int(int64Value)
 }
 
+func degToRad(deg float64) float64 {
+	return deg * math.Pi / 180
+}
+
+func degCos(deg float64) float64 {
+	return math.Cos(degToRad(deg))
+}
+
+func degSin(deg float64) float64 {
+	return math.Sin(degToRad(deg))
+}
+
 type TurtlePoint struct {
 	X           float64
 	Y           float64
@@ -175,9 +187,8 @@ func jsToScad(jsInput string) string {
 	})
 	vm.Set("forward", func(call otto.FunctionCall) otto.Value {
 		d := toFloat(call.Argument(0))
-		heading := turtleHeading
-		turtleX += d * math.Cos(heading*math.Pi/180)
-		turtleY += d * math.Sin(heading*math.Pi/180)
+		turtleX += d * degCos(turtleHeading)
+		turtleY += d * degSin(turtleHeading)
 		if turtlePendown {
 			turtlePoints = append(turtlePoints, TurtlePoint{
 				X:           turtleX,
@@ -224,10 +235,9 @@ func jsToScad(jsInput string) string {
 			point := polygon[0]
 			for j := 0; j < point.EndCapSides; j++ {
 				angle := float64(j) * 360 / float64(point.EndCapSides)
-				angle = angle * math.Pi / 180
 				outPoint(
-					point.X+point.Thickness/2*math.Cos(angle),
-					point.Y+point.Thickness/2*math.Sin(angle),
+					point.X+point.Thickness/2*degCos(angle),
+					point.Y+point.Thickness/2*degSin(angle),
 					j == point.EndCapSides-1)
 			}
 			outEndPolygon()
@@ -246,10 +256,9 @@ func jsToScad(jsInput string) string {
 				// Draw begin cap
 				for j := 0; j <= point.EndCapSides/2; j++ {
 					angle := point.Heading - 90 - float64(j)*360/float64(point.EndCapSides)
-					angle = angle * math.Pi / 180
 					outPoint(
-						point.X+point.Thickness/2*math.Cos(angle),
-						point.Y+point.Thickness/2*math.Sin(angle),
+						point.X+point.Thickness/2*degCos(angle),
+						point.Y+point.Thickness/2*degSin(angle),
 						j == point.EndCapSides/2)
 				}
 				outNewLine()
@@ -260,10 +269,9 @@ func jsToScad(jsInput string) string {
 				}
 				for j := 0; j <= point.EndCapSides/2; j++ {
 					angle := headingPrev + 90 - float64(j)*360/float64(point.EndCapSides)
-					angle = angle * math.Pi / 180
 					outPoint(
-						point.X+point.Thickness/2*math.Cos(angle),
-						point.Y+point.Thickness/2*math.Sin(angle),
+						point.X+point.Thickness/2*degCos(angle),
+						point.Y+point.Thickness/2*degSin(angle),
 						j == point.EndCapSides/2)
 				}
 				if len(polygon) > 2 {
