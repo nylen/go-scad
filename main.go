@@ -57,6 +57,10 @@ func degToRad(deg float64) float64 {
 	return deg * math.Pi / 180
 }
 
+func radToDeg(rad float64) float64 {
+	return rad * 180 / math.Pi
+}
+
 func degCos(deg float64) float64 {
 	return math.Cos(degToRad(deg))
 }
@@ -217,6 +221,23 @@ func jsToScad(jsInput string) string {
 		turtleHeading += toFloat(call.Argument(0))
 		return otto.UndefinedValue()
 	})
+	vm.Set("setpos", func(call otto.FunctionCall) otto.Value {
+		x := toFloat(call.Argument(0))
+		y := toFloat(call.Argument(1))
+		thisHeading := radToDeg(math.Atan2(y-turtleY, x-turtleX))
+		turtleX = x
+		turtleY = y
+		if turtlePendown {
+			turtlePolygon.Points = append(turtlePolygon.Points, TurtlePoint{
+				X:           turtleX,
+				Y:           turtleY,
+				Thickness:   turtlePenSize,
+				EndCapSides: turtleEndCapSides,
+			})
+			turtlePolygon.Headings = append(turtlePolygon.Headings, thisHeading)
+		}
+		return otto.UndefinedValue()
+	})
 
 	// Set up aliases
 	vm.Run("pd = down = pendown;")
@@ -224,6 +245,7 @@ func jsToScad(jsInput string) string {
 	vm.Run("width = pensize;")
 	vm.Run("rt = right;")
 	vm.Run("lt = left;")
+	vm.Run("setposition = setpos;") // Note, no `goto` alias (reserved word)
 
 	// Run the script
 	_, err := vm.Run(jsInput)
