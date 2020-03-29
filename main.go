@@ -10,6 +10,7 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type args struct {
@@ -51,6 +52,17 @@ func toInt(value otto.Value) int {
 		log.Fatal(err)
 	}
 	return int(int64Value)
+}
+
+func toString(value otto.Value) string {
+	if value.IsUndefined() {
+		log.Fatal("Undefined value passed to toString()")
+	}
+	stringValue, err := value.ToString()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return stringValue
 }
 
 func degToRad(deg float64) float64 {
@@ -114,12 +126,16 @@ func main() {
 func jsToScad(jsInput string) string {
 	output := ""
 
+	indentLevel := 0
+
 	outBeginPolygon := func() {
-		output += "polygon(points = [\n\t"
+		output += strings.Repeat("\t", indentLevel) +
+			"polygon(points = [\n" +
+			strings.Repeat("\t", indentLevel+1)
 	}
 
 	outNewLine := func() {
-		output += "\n\t"
+		output += "\n" + strings.Repeat("\t", indentLevel+1)
 	}
 
 	outPoint := func(x float64, y float64, isLast bool) {
@@ -134,7 +150,17 @@ func jsToScad(jsInput string) string {
 	}
 
 	outEndPolygon := func() {
-		output += "\n]);\n"
+		output += "\n" + strings.Repeat("\t", indentLevel) + "]);\n"
+	}
+
+	outBeginBlock := func(wrapper string) {
+		output += strings.Repeat("\t", indentLevel) + wrapper + " {\n"
+		indentLevel += 1
+	}
+
+	outEndBlock := func() {
+		indentLevel -= 1
+		output += strings.Repeat("\t", indentLevel) + "}\n"
 	}
 
 	// Strip hashbang line if present
@@ -240,6 +266,12 @@ func jsToScad(jsInput string) string {
 	})
 	vm.Set("heading", func(call otto.FunctionCall) otto.Value {
 		return toJsValue(turtleHeading)
+	})
+	vm.Set("wrap", func(call otto.FunctionCall) otto.Value {
+		outBeginBlock(toString(call.Argument(0)))
+		call.Argument(1).Call(otto.UndefinedValue())
+		outEndBlock()
+		return otto.UndefinedValue()
 	})
 
 	// Set up aliases
