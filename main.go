@@ -238,6 +238,9 @@ func jsToScad(jsInput string) string {
 		}
 		return otto.UndefinedValue()
 	})
+	vm.Set("heading", func(call otto.FunctionCall) otto.Value {
+		return toJsValue(turtleHeading)
+	})
 
 	// Set up aliases
 	vm.Run("pd = down = pendown;")
