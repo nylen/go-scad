@@ -270,10 +270,6 @@ func jsToScad(jsInput string) string {
 	vm.Set("wrap", func(call otto.FunctionCall) otto.Value {
 		outBeginBlock(toString(call.Argument(0)))
 		call.Argument(1).Call(otto.UndefinedValue())
-		vm.Call("_internal_outEndBlock();", otto.UndefinedValue())
-		return otto.UndefinedValue()
-	})
-	vm.Set("_internal_outEndBlock", func(call otto.FunctionCall) otto.Value {
 		outEndBlock()
 		return otto.UndefinedValue()
 	})
