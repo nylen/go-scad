@@ -163,137 +163,7 @@ func jsToScad(jsInput string) string {
 		output += strings.Repeat("\t", indentLevel) + "}\n"
 	}
 
-	// Strip hashbang line if present
-	jsInput = regexp.MustCompile(`^#!.*\n`).ReplaceAllString(jsInput, "\n")
-
-	// Set up JavaScript interpreter
-	vm = otto.New()
-
-	// Internal state variables
-	turtlePendown := false
-	turtlePolygons := make([]TurtlePolygon, 0)
-	var turtlePenSize float64 = 1
-	var turtleEndCapSides int = 60
-	var turtleX float64 = 0
-	var turtleY float64 = 0
-	var turtleHeading float64 = 0
-	var turtlePolygon TurtlePolygon
-
-	// Set up functions
-	vm.Set("pendown", func(call otto.FunctionCall) otto.Value {
-		if !turtlePendown {
-			turtlePendown = true
-			turtlePolygon = TurtlePolygon{
-				Points: []TurtlePoint{{
-					X:           turtleX,
-					Y:           turtleY,
-					Thickness:   turtlePenSize,
-					EndCapSides: turtleEndCapSides,
-				}},
-				Headings: make([]float64, 0),
-			}
-		}
-		return otto.UndefinedValue()
-	})
-	vm.Set("penup", func(call otto.FunctionCall) otto.Value {
-		if turtlePendown {
-			turtlePendown = false
-			if len(turtlePolygon.Points) != len(turtlePolygon.Headings)+1 {
-				log.Fatalf("Bad polygon: points=%d headings=%d",
-					len(turtlePolygon.Points),
-					len(turtlePolygon.Headings))
-			}
-			turtlePolygons = append(turtlePolygons, turtlePolygon)
-		}
-		return otto.UndefinedValue()
-	})
-	vm.Set("pensize", func(call otto.FunctionCall) otto.Value {
-		if call.Argument(0).IsUndefined() {
-			return toJsValue(turtlePenSize)
-		}
-		turtlePenSize = toFloat(call.Argument(0))
-		return otto.UndefinedValue()
-	})
-	vm.Set("end_cap_sides", func(call otto.FunctionCall) otto.Value {
-		if call.Argument(0).IsUndefined() {
-			return toJsValue(turtleEndCapSides)
-		}
-		turtleEndCapSides = toInt(call.Argument(0))
-		if turtleEndCapSides < 2 || turtleEndCapSides%2 == 1 {
-			log.Fatalf("Invalid end_cap_sides value: %d", turtleEndCapSides)
-		}
-		return otto.UndefinedValue()
-	})
-	vm.Set("forward", func(call otto.FunctionCall) otto.Value {
-		d := toFloat(call.Argument(0))
-		turtleX += d * degCos(turtleHeading)
-		turtleY += d * degSin(turtleHeading)
-		if turtlePendown {
-			turtlePolygon.Points = append(turtlePolygon.Points, TurtlePoint{
-				X:           turtleX,
-				Y:           turtleY,
-				Thickness:   turtlePenSize,
-				EndCapSides: turtleEndCapSides,
-			})
-			turtlePolygon.Headings = append(turtlePolygon.Headings, turtleHeading)
-		}
-		return otto.UndefinedValue()
-	})
-	vm.Set("right", func(call otto.FunctionCall) otto.Value {
-		turtleHeading -= toFloat(call.Argument(0))
-		return otto.UndefinedValue()
-	})
-	vm.Set("left", func(call otto.FunctionCall) otto.Value {
-		turtleHeading += toFloat(call.Argument(0))
-		return otto.UndefinedValue()
-	})
-	vm.Set("setpos", func(call otto.FunctionCall) otto.Value {
-		x := toFloat(call.Argument(0))
-		y := toFloat(call.Argument(1))
-		thisHeading := radToDeg(math.Atan2(y-turtleY, x-turtleX))
-		turtleX = x
-		turtleY = y
-		if turtlePendown {
-			turtlePolygon.Points = append(turtlePolygon.Points, TurtlePoint{
-				X:           turtleX,
-				Y:           turtleY,
-				Thickness:   turtlePenSize,
-				EndCapSides: turtleEndCapSides,
-			})
-			turtlePolygon.Headings = append(turtlePolygon.Headings, thisHeading)
-		}
-		return otto.UndefinedValue()
-	})
-	vm.Set("heading", func(call otto.FunctionCall) otto.Value {
-		return toJsValue(turtleHeading)
-	})
-	vm.Set("wrap", func(call otto.FunctionCall) otto.Value {
-		outBeginBlock(toString(call.Argument(0)))
-		call.Argument(1).Call(otto.UndefinedValue())
-		outEndBlock()
-		return otto.UndefinedValue()
-	})
-
-	// Set up aliases
-	vm.Run("pd = down = pendown;")
-	vm.Run("pu = up = penup;")
-	vm.Run("width = pensize;")
-	vm.Run("rt = right;")
-	vm.Run("lt = left;")
-	vm.Run("setposition = setpos;") // Note, no `goto` alias (reserved word)
-
-	// Run the script
-	_, err := vm.Run(jsInput)
-	if err != nil {
-		if jsErr, ok := err.(*otto.Error); ok {
-			log.Fatalf("JavaScript error: %s", jsErr.String())
-		} else {
-			log.Fatal("JavaScript error: ", err)
-		}
-	}
-
-	// Turn the results into OpenSCAD output
-	for _, polygon := range turtlePolygons {
+	writePolygon := func(polygon TurtlePolygon) {
 		outBeginPolygon()
 
 		if len(polygon.Points) == 1 {
@@ -307,7 +177,7 @@ func jsToScad(jsInput string) string {
 					j == point.EndCapSides-1)
 			}
 			outEndPolygon()
-			continue
+			return
 		}
 
 		// Loop around the polygon's coordinates twice (first in ascending
@@ -415,6 +285,135 @@ func jsToScad(jsInput string) string {
 
 		outEndPolygon()
 	}
+
+	// Strip hashbang line if present
+	jsInput = regexp.MustCompile(`^#!.*\n`).ReplaceAllString(jsInput, "\n")
+
+	// Set up JavaScript interpreter
+	vm = otto.New()
+
+	// Internal state variables
+	turtlePendown := false
+	var turtlePenSize float64 = 1
+	var turtleEndCapSides int = 60
+	var turtleX float64 = 0
+	var turtleY float64 = 0
+	var turtleHeading float64 = 0
+	var turtlePolygon TurtlePolygon
+
+	// Set up functions
+	vm.Set("pendown", func(call otto.FunctionCall) otto.Value {
+		if !turtlePendown {
+			turtlePendown = true
+			turtlePolygon = TurtlePolygon{
+				Points: []TurtlePoint{{
+					X:           turtleX,
+					Y:           turtleY,
+					Thickness:   turtlePenSize,
+					EndCapSides: turtleEndCapSides,
+				}},
+				Headings: make([]float64, 0),
+			}
+		}
+		return otto.UndefinedValue()
+	})
+	vm.Set("penup", func(call otto.FunctionCall) otto.Value {
+		if turtlePendown {
+			turtlePendown = false
+			if len(turtlePolygon.Points) != len(turtlePolygon.Headings)+1 {
+				log.Fatalf("Bad polygon: points=%d headings=%d",
+					len(turtlePolygon.Points),
+					len(turtlePolygon.Headings))
+			}
+			writePolygon(turtlePolygon)
+		}
+		return otto.UndefinedValue()
+	})
+	vm.Set("pensize", func(call otto.FunctionCall) otto.Value {
+		if call.Argument(0).IsUndefined() {
+			return toJsValue(turtlePenSize)
+		}
+		turtlePenSize = toFloat(call.Argument(0))
+		return otto.UndefinedValue()
+	})
+	vm.Set("end_cap_sides", func(call otto.FunctionCall) otto.Value {
+		if call.Argument(0).IsUndefined() {
+			return toJsValue(turtleEndCapSides)
+		}
+		turtleEndCapSides = toInt(call.Argument(0))
+		if turtleEndCapSides < 2 || turtleEndCapSides%2 == 1 {
+			log.Fatalf("Invalid end_cap_sides value: %d", turtleEndCapSides)
+		}
+		return otto.UndefinedValue()
+	})
+	vm.Set("forward", func(call otto.FunctionCall) otto.Value {
+		d := toFloat(call.Argument(0))
+		turtleX += d * degCos(turtleHeading)
+		turtleY += d * degSin(turtleHeading)
+		if turtlePendown {
+			turtlePolygon.Points = append(turtlePolygon.Points, TurtlePoint{
+				X:           turtleX,
+				Y:           turtleY,
+				Thickness:   turtlePenSize,
+				EndCapSides: turtleEndCapSides,
+			})
+			turtlePolygon.Headings = append(turtlePolygon.Headings, turtleHeading)
+		}
+		return otto.UndefinedValue()
+	})
+	vm.Set("right", func(call otto.FunctionCall) otto.Value {
+		turtleHeading -= toFloat(call.Argument(0))
+		return otto.UndefinedValue()
+	})
+	vm.Set("left", func(call otto.FunctionCall) otto.Value {
+		turtleHeading += toFloat(call.Argument(0))
+		return otto.UndefinedValue()
+	})
+	vm.Set("setpos", func(call otto.FunctionCall) otto.Value {
+		x := toFloat(call.Argument(0))
+		y := toFloat(call.Argument(1))
+		thisHeading := radToDeg(math.Atan2(y-turtleY, x-turtleX))
+		turtleX = x
+		turtleY = y
+		if turtlePendown {
+			turtlePolygon.Points = append(turtlePolygon.Points, TurtlePoint{
+				X:           turtleX,
+				Y:           turtleY,
+				Thickness:   turtlePenSize,
+				EndCapSides: turtleEndCapSides,
+			})
+			turtlePolygon.Headings = append(turtlePolygon.Headings, thisHeading)
+		}
+		return otto.UndefinedValue()
+	})
+	vm.Set("heading", func(call otto.FunctionCall) otto.Value {
+		return toJsValue(turtleHeading)
+	})
+	vm.Set("wrap", func(call otto.FunctionCall) otto.Value {
+		outBeginBlock(toString(call.Argument(0)))
+		call.Argument(1).Call(otto.UndefinedValue())
+		outEndBlock()
+		return otto.UndefinedValue()
+	})
+
+	// Set up aliases
+	vm.Run("pd = down = pendown;")
+	vm.Run("pu = up = penup;")
+	vm.Run("width = pensize;")
+	vm.Run("rt = right;")
+	vm.Run("lt = left;")
+	vm.Run("setposition = setpos;") // Note, no `goto` alias (reserved word)
+
+	// Run the script
+	_, err := vm.Run(jsInput)
+	if err != nil {
+		if jsErr, ok := err.(*otto.Error); ok {
+			log.Fatalf("JavaScript error: %s", jsErr.String())
+		} else {
+			log.Fatal("JavaScript error: ", err)
+		}
+	}
+
 
 	return output
 }
