@@ -163,6 +163,13 @@ func jsToScad(jsInput string) string {
 		output += strings.Repeat("\t", indentLevel) + "}\n"
 	}
 
+	outEcho := func(text string) {
+		lines := strings.Split(text, "\n")
+		for _, line := range lines {
+			output += strings.Repeat("\t", indentLevel) + line + "\n"
+		}
+	}
+
 	writePolygon := func(polygon TurtlePolygon) {
 		outBeginPolygon()
 
@@ -395,6 +402,10 @@ func jsToScad(jsInput string) string {
 		outEndBlock()
 		return otto.UndefinedValue()
 	})
+	vm.Set("echo", func(call otto.FunctionCall) otto.Value {
+		outEcho(toString(call.Argument(0)))
+		return otto.UndefinedValue()
+	})
 
 	// Set up aliases
 	vm.Run("pd = down = pendown;")
@@ -413,7 +424,6 @@ func jsToScad(jsInput string) string {
 			log.Fatal("JavaScript error: ", err)
 		}
 	}
-
 
 	return output
 }
