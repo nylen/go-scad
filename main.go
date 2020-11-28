@@ -89,8 +89,9 @@ type TurtlePoint struct {
 }
 
 type TurtlePolygon struct {
-	Points   []TurtlePoint
-	Headings []float64
+	Points    []TurtlePoint
+	Headings  []float64
+	ZeroWidth bool
 }
 
 var stripZeroes *regexp.Regexp
@@ -172,6 +173,20 @@ func jsToScad(jsInput string) string {
 
 	writePolygon := func(polygon TurtlePolygon) {
 		outBeginPolygon()
+
+		if polygon.ZeroWidth {
+			if len(polygon.Points) == 1 {
+				log.Fatal("Zero-width polygon with one point is invalid")
+			}
+			for i, point := range polygon.Points {
+				outPoint(
+					point.X,
+					point.Y,
+					i == len(polygon.Points)-1)
+			}
+			outEndPolygon()
+			return
+		}
 
 		if len(polygon.Points) == 1 {
 			// Degenerate case: just draw an end cap
@@ -319,7 +334,8 @@ func jsToScad(jsInput string) string {
 					Thickness:   turtlePenSize,
 					EndCapSides: turtleEndCapSides,
 				}},
-				Headings: make([]float64, 0),
+				Headings:  make([]float64, 0),
+				ZeroWidth: (turtlePenSize == 0),
 			}
 		}
 		return otto.UndefinedValue()
@@ -341,6 +357,13 @@ func jsToScad(jsInput string) string {
 			return toJsValue(turtlePenSize)
 		}
 		turtlePenSize = toFloat(call.Argument(0))
+		if turtlePenSize < 0 {
+			log.Fatal("Pen size set to less than 0")
+		} else if turtlePendown && turtlePolygon.ZeroWidth && turtlePenSize > 0 {
+			log.Fatal("Polygon was started with pen size 0 and then set to non-zero")
+		} else if turtlePendown && !turtlePolygon.ZeroWidth && turtlePenSize == 0 {
+			log.Fatal("Polygon was started with non-zero pen size and then set to 0")
+		}
 		return otto.UndefinedValue()
 	})
 	vm.Set("end_cap_sides", func(call otto.FunctionCall) otto.Value {
